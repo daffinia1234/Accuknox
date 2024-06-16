@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import FriendRequest
+from . models import FriendRequest
 
 
 class UserSerailizer(serializers.ModelSerializer):
@@ -13,18 +13,9 @@ class UserViewSerailizer(serializers.ModelSerializer):
         model=User
         fields=['id','username','email']
 
-
-#Friend Request Serializer
 class FriendRequestSerializer(serializers.ModelSerializer):
-    from_user = serializers.StringRelatedField()
-    to_user = serializers.StringRelatedField()
+    class Meta(object):
+        model=FriendRequest
+        fields=['id','from_user','to_user']
 
-    class Meta:
-        model = FriendRequest
-        fields = ['id', 'from_user', 'to_user', 'created_at', 'status']
-
-class FriendRequestCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FriendRequest
-        fields = ['to_user']
 

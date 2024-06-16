@@ -2,24 +2,19 @@ from rest_framework.decorators import api_view
 import json
 from django.contrib.auth.models import User
 from rest_framework import status
+from . models import FriendRequest,Friends
 from rest_framework.authtoken.models import Token
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import authentication_classes,permission_classes
-from .serializers import UserSerailizer, UserViewSerailizer
+from .serializers import UserSerailizer, UserViewSerailizer,FriendRequestSerializer
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import generics
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.throttling import UserRateThrottle
-from django.core.cache import cache
-from .models import FriendRequest
-from .serializers import FriendRequestSerializer, FriendRequestCreateSerializer
-from django.utils import timezone
-from datetime import timedelta
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 
 # Create your views here.
 
@@ -86,7 +81,7 @@ class UserSearchView(generics.ListAPIView):
         search_keyword = self.request.query_params.get('search', None)
         
         if search_keyword:
-            if '@' in search_keyword:  # Assuming email search if there's an '@' character
+            if is_valid_email(search_keyword) :  # Assuming email search if there's an '@' character
                 queryset = queryset.filter(email__iexact=search_keyword)
             else:
                 queryset = queryset.filter(username__icontains=search_keyword) 
@@ -103,4 +98,61 @@ class UserSearchView(generics.ListAPIView):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
+
+def is_valid_email(email):
+    try:
+        validate_email(email)
+        return True
+    except ValidationError:
+        return False
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])   
+def send_request(request,userID):
+    from_user=request.user
+    to_user=get_user(userID)
+    if to_user is None:
+        return Response({'User not Found'})
+    friend_request, created=FriendRequest.objects.get_or_create(from_user=from_user,to_user=to_user)
+    if created:
+        return Response('Friend request sent successfully',status=status.HTTP_200_OK)
+    else:
+        return Response('Request already sent')
+    
+def get_user(userID):
+    try:
+        return User.objects.get(id=userID)
+    except User.DoesNotExist:
+        return None
+    
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_open_request(request):
+    user=request.user
+    open_requests=user.friend_request_received.all()
+    serializer=FriendRequestSerializer(open_requests,many=True)
+    return Response({'openrequests':serializer.data},status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def accept(request,requestID):
+    user=request.user
+    friend_request = FriendRequest.objects.get(id=requestID)
+    if user==friend_request.to_user:
+        to_friends, created = Friends.objects.get_or_create(user=friend_request.to_user)
+        from_friends, created = Friends.objects.get_or_create(user=friend_request.from_user)
+
+        to_friends.friends_list.add(friend_request.from_user)
+        from_friends.friends_list.add(friend_request.to_user)
+
+        friend_request.delete()
+        return Response('Friend request accepted',status=status.HTTP_200_OK)
+    else:
+        return Response('Not a valid friend request')
+
+    
+
 
