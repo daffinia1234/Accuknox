@@ -84,7 +84,7 @@ class UserSearchView(generics.ListAPIView):
         search_keyword = self.request.query_params.get('search', None)
         
         if search_keyword:
-            if is_valid_email(search_keyword) :  # Assuming email search if there's an '@' character
+            if is_valid_email(search_keyword) : 
                 queryset = queryset.filter(email__iexact=search_keyword)
             else:
                 queryset = queryset.filter(username__icontains=search_keyword) 
