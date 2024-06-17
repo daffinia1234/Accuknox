@@ -199,8 +199,8 @@ def get_friends_list(request):
 
 
 def get_friends_of_user(user):
-    friends_obj = get_object_or_404(Friends, user=user)
-    friends = friends_obj.friends_list.all()
+    friends_obj = Friends.objects.filter(user=user).first()
+    friends = friends_obj.friends_list.all() if friends_obj is not None else []
     return friends
 
 
