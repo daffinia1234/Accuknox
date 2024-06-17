@@ -12,6 +12,8 @@ from rest_framework.decorators import authentication_classes,permission_classes
 from .serializers import UserSerailizer, UserViewSerailizer,FriendRequestSerializer
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import generics
+from datetime import timedelta
+from django.utils import timezone
 
 
 from django.core.validators import validate_email
@@ -112,21 +114,33 @@ def is_valid_email(email):
 @permission_classes([IsAuthenticated])   
 def send_request(request,userID):
     from_user=request.user
-    to_user=get_user(userID)
+    
+    if not can_send_friend_request(from_user):
+        return Response('You have already sent 3 requests per minute')
+    
+    to_user= User.objects.filter(id=userID).first()
+    
     if to_user is None:
-        return Response({'User not Found'})
+        return Response('User not Found')
+  
+    if to_user in get_friends_of_user(from_user):
+        return Response('You are already friend with this user')
+
+
     friend_request, created=FriendRequest.objects.get_or_create(from_user=from_user,to_user=to_user)
+
     if created:
         return Response('Friend request sent successfully',status=status.HTTP_200_OK)
     else:
         return Response('Request already sent')
     
-def get_user(userID):
-    try:
-        return User.objects.get(id=userID)
-    except User.DoesNotExist:
-        return None
-    
+
+def can_send_friend_request(user):
+    one_minute_ago = timezone.now() - timedelta(minutes=1)
+    recent_requests = FriendRequest.objects.filter(from_user=user, timestamp__gte=one_minute_ago)
+    return recent_requests.count() < 3
+
+
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
