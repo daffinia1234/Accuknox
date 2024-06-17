@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view
-import json
+
 from django.contrib.auth.models import User
 from rest_framework import status
 from . models import FriendRequest,Friends
@@ -12,6 +12,7 @@ from rest_framework.decorators import authentication_classes,permission_classes
 from .serializers import UserSerailizer, UserViewSerailizer,FriendRequestSerializer
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import generics
+
 
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
@@ -139,9 +140,15 @@ def get_open_request(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def accept(request,requestID):
+
     user=request.user
-    friend_request = FriendRequest.objects.get(id=requestID)
-    if user==friend_request.to_user:
+    friend_request = FriendRequest.objects.filter(id=requestID).first()
+
+    if friend_request is None:
+        return Response('Not a valid friend request')
+    elif user != friend_request.to_user:
+        return Response('Not a valid friend request')
+    else:   
         to_friends, created = Friends.objects.get_or_create(user=friend_request.to_user)
         from_friends, created = Friends.objects.get_or_create(user=friend_request.from_user)
 
@@ -150,9 +157,36 @@ def accept(request,requestID):
 
         friend_request.delete()
         return Response('Friend request accepted',status=status.HTTP_200_OK)
-    else:
-        return Response('Not a valid friend request')
-
     
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def reject(request,requestID):
+    friend_request=FriendRequest.objects.filter(id=requestID).first()
+    user=request.user
+    if friend_request is None:
+        return Response('Not a valid friend request')
+    elif user!=friend_request.to_user:
+        return Response('Not a valid friend request')
+    else:
+        friend_request.delete()
+        return Response('Friend request Rejected')
+        
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_friends_list(request):
+    user=request.user
+    friends= get_friends_of_user(user)
+    friends_data = [{'id': friend.id, 'username': friend.username} for friend in friends]
+    return Response({'friends' : friends_data})
+
+
+def get_friends_of_user(user):
+    friends_obj = get_object_or_404(Friends, user=user)
+    friends = friends_obj.friends_list.all()
+    return friends
 
 

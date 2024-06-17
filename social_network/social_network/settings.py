@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'social_net_app',
     'rest_framework',
     'rest_framework.authtoken',
+
 ]
 
 REST_FRAMEWORK = {
