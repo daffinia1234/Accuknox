@@ -4,6 +4,10 @@ git clone to checkout the project
 
 To install the web App to run it locally, you have to build the docker image first
 
+Go to socila_network/
+
+Run the following command to build the docer image.
+
 docker build -t social_network_project .
 
 Then run the docker image
