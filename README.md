@@ -17,5 +17,3 @@ docker run -d -p 8080:8080 social_network_project
 once it is started, you can hit the API to get started 
 
 http://127.0.0.1:8080/api/signup/
-
-Shared postman collection for each API endpoints on postman collections
